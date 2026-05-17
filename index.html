@@ -64,7 +64,9 @@ body {
 
 /* HLAVNÁ STRÁNKA */
 h1 { margin-top: 80px; color: #ff4b2b; font-size: 64px; font-weight: 900; position: relative; z-index: 2; letter-spacing: -2px; }
-#search { margin-top: 15px; padding: 18px; width: 320px; border-radius: 35px; border: none; outline: none; position: relative; z-index: 2; box-shadow: 0 10px 25px rgba(0,0,0,0.08); font-size: 16px; }
+.controls-container { display: flex; justify-content: center; gap: 15px; margin-top: 15px; position: relative; z-index: 2; flex-wrap: wrap; }
+#search { padding: 18px; width: 320px; border-radius: 35px; border: none; outline: none; box-shadow: 0 10px 25px rgba(0,0,0,0.08); font-size: 16px; }
+#sortSelect { padding: 0 20px; height: 54px; border-radius: 35px; border: none; outline: none; box-shadow: 0 10px 25px rgba(0,0,0,0.08); font-size: 16px; background-color: white; cursor: pointer; color: #555; }
 #mojDivVJs { display: flex; flex-wrap: wrap; justify-content: center; gap: 40px; margin-top: 40px; padding: 40px; position: relative; z-index: 2; }
 
 /* KARTY POSTÁV */
@@ -119,7 +121,19 @@ h1 { margin-top: 80px; color: #ff4b2b; font-size: 64px; font-weight: 900; positi
 </div>
 
 <h1>MARKCHAT ❤️</h1>
-<input id="search" placeholder="Hľadať spriaznenú dušu...">
+
+<!-- Zabalenie vyhľadávania a sortovania do jedného kontajnera -->
+<div class="controls-container">
+    <input id="search" placeholder="Hľadať spriaznenú dušu...">
+    <select id="sortSelect">
+        <option value="default">Základné poradie</option>
+        <option value="nameAsc">Meno: A-Z</option>
+        <option value="nameDesc">Meno: Z-A</option>
+        <option value="ageAsc">Vek: Najmladší</option>
+        <option value="ageDesc">Vek: Najstarší</option>
+    </select>
+</div>
+
 <div id="mojDivVJs"></div>
 
 <div id="modal">
@@ -152,6 +166,7 @@ h1 { margin-top: 80px; color: #ff4b2b; font-size: 64px; font-weight: 900; positi
 <script>
 const mojDivVJs = document.getElementById("mojDivVJs")
 const search = document.getElementById("search")
+const sortSelect = document.getElementById("sortSelect")
 const modal = document.getElementById("modal")
 const personName = document.getElementById("personName")
 const personSubInfo = document.getElementById("personSubInfo")
@@ -220,10 +235,35 @@ async function nacitajLudi(){
         const res = await fetch(`${BACKEND_URL}`);
         const data = await res.json();
         vsetciLudia = data.students;
-        zobrazLudi(vsetciLudia);
+        spracujAAktualizujZoznam();
     } catch(e) {
         mojDivVJs.innerHTML = `<p style="background:white; padding:20px; border-radius:20px;">Prebúdzam server... ❤️</p>`;
     }
+}
+
+// 🔄 POMOCNÁ FUNKCIA NA FILTROVANIE A ZORADENIE
+function spracujAAktualizujZoznam() {
+    const hladanyText = search.value.toLowerCase();
+    const rezimZoradenia = sortSelect.value;
+
+    // 1. Filtrovanie podľa vyhľadávania
+    let filtrovanyZoznam = vsetciLudia.filter(c => 
+        (c.name + " " + (c.surname || "")).toLowerCase().includes(hladanyText)
+    );
+
+    // 2. Zoradenie podľa vybranej možnosti
+    if (rezimZoradenia === "nameAsc") {
+        filtrovanyZoznam.sort((a, b) => a.name.localeCompare(b.name, 'sk'));
+    } else if (rezimZoradenia === "nameDesc") {
+        filtrovanyZoznam.sort((a, b) => b.name.localeCompare(a.name, 'sk'));
+    } else if (rezimZoradenia === "ageAsc") {
+        filtrovanyZoznam.sort((a, b) => ziskajInfo(a).vek - ziskajInfo(b).vek);
+    } else if (rezimZoradenia === "ageDesc") {
+        filtrovanyZoznam.sort((a, b) => ziskajInfo(b).vek - ziskajInfo(a).vek);
+    }
+
+    // 3. Vykreslenie spracovaného zoznamu
+    zobrazLudi(filtrovanyZoznam);
 }
 
 function zobrazLudi(list){
@@ -245,7 +285,7 @@ function otvorCloveka(c){
     aktualnaPostava = c;
     const info = ziskajInfo(c);
     modal.style.display="flex"
-    personName.textContent=c.name+" "+c.surname
+    personName.textContent=c.name+" "+(c.surname || "")
     personSubInfo.textContent = `${info.vek} rokov • ${info.mesto}`;
     modalImg.src=c.image
     popisok.textContent = info.zaluba;
@@ -282,10 +322,9 @@ function pridaj(text, typ){
 
 chatInput.onkeydown = (e) => { if(e.key === "Enter") posliSpravu() }
 
-search.oninput = () => {
-    const t = search.value.toLowerCase()
-    zobrazLudi(vsetciLudia.filter(c => (c.name+" "+c.surname).toLowerCase().includes(t)))
-}
+// Eventy pre vyhľadávanie aj zmenu zoradenia volajú spoločnú funkciu
+search.oninput = spracujAAktualizujZoznam;
+sortSelect.onchange = spracujAAktualizujZoznam;
 
 nacitajLudi();
 </script>
